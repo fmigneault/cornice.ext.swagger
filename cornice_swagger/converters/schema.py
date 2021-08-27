@@ -4,6 +4,7 @@ object schemas by converting types and node validators.
 """
 
 import colander
+import re
 from cornice_swagger.converters.exceptions import NoSuchConverter
 
 
@@ -184,18 +185,36 @@ class TimeTypeConverter(BaseStringTypeConverter):
     format = 'time'
 
 
+# partial subset of 'colander.url'
+HOSTNAME_REGEX = (
+    r'^'
+    # Domain
+    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+'
+    r'(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'
+    # Localhost
+    r'localhost|'
+    # IPv6 address
+    r'\[[a-f0-9:]+\]|'
+    # IPv4 address
+    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+    r'$'
+)
+
+hostname = colander.Regex(HOSTNAME_REGEX, msg=colander._('Must be a hostname'), flags=re.IGNORECASE)
+
 STRING_FORMATTERS = {
     # officials
     'email': {'converter': BaseStringTypeConverter, 'validator': colander.Email},
+    'uri': {'converter': BaseStringTypeConverter, 'validator': colander.url},
     'url': {'converter': BaseStringTypeConverter, 'validator': colander.url},
     'date': {'converter': DateTypeConverter, 'validator': None},
     'date-time': {'converter': DateTimeTypeConverter, 'validator': None},
-    'password': {'converter': BaseStringTypeConverter, 'validator': colander},
-    'binary': {'converter': BaseStringTypeConverter, 'validator': colander.file_uri},
-    'byte': {'converter': BaseStringTypeConverter, 'validator': colander.file_uri},
+    'password': {'converter': BaseStringTypeConverter, 'validator': None},
+    'binary': {'converter': BaseStringTypeConverter, 'validator': None},
+    'byte': {'converter': BaseStringTypeConverter, 'validator': None},
     # common but unofficial
     'time': {'converter': TimeTypeConverter, 'validator': None},
-    'hostname': {'converter': BaseStringTypeConverter, 'validator': colander.url},
+    'hostname': {'converter': BaseStringTypeConverter, 'validator': hostname},
     'uuid': {'converter': BaseStringTypeConverter, 'validator': colander.uuid},
     'file': {'converter': BaseStringTypeConverter, 'validator': colander.file_uri},
 }
