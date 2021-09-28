@@ -229,11 +229,15 @@ class ParameterHandler(object):
 
                 params.append(param)
 
-            elif location in (('path', 'header', 'headers', 'querystring', 'GET')):
+            elif location in ('path', 'header', 'headers', 'querystring', 'GET'):
                 for node_schema in param_schema.children:
                     param = self.parameter_converter(location, node_schema)
                     if self.ref:
-                        param = self._ref(param)
+                        # Avoid references overriding each other in case of same name.
+                        # This is very common because two endpoints/methods can use different query or header
+                        # definitions although they employ the same name (eg: different descriptions for each).
+                        name = None if "title" in param else (param_schema.__class__.__name__ + "." + node_schema.name)
+                        param = self._ref(param, base_name=name)
                     params.append(param)
 
         return params
