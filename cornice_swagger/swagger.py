@@ -776,23 +776,34 @@ class CorniceSwagger(object):
             #  maybe keep/remove? to test
             #  body can be duplicated because of different 'accept' views
             #  response *should* not be duplicated because 1 view == 1 ctypes accept/renderer...
-            variations = []
-            #for ctype in op.get('requestBody', {}).get('content', []):
-            #    variations.append({"type": "requestBody", "ctype": ctype})
+            variations_request = []
+            variations_response = []
+            for ctype in op.get('requestBody', {}).get('content', []):
+                variations_request.append({"type": "requestBody", "ctype": ctype})
             for code in op.get('responses', []):
                 contents = op['responses'][code].get('content', [])
                 for ctype in contents:
-                    variations.append({"type": "response", "ctype": ctype, "code": code})
-            return variations
+                    variations_response.append({"type": "response", "ctype": ctype, "code": code})
+            return variations_request, variations_response
 
-        var_oper = _extract_info(operation)
-        var_prev = _extract_info(previous_definition)
-        for vo in var_oper:
-            for vp in var_prev:
-                if vo == vp:
-                    raise CorniceSwaggerException(
-                        "Invalid path '{}' definitions specifies conflicting "
-                        "parameters {} at more than one place.".format(path, vo))
+        # each definition must minimally provide one new element between request/response definitions
+        # complementary request/response definitions can be duplicated if one was different
+        # (eg: different request bodies produce same kind of responses in each case - distinct 'Content-Type' header,
+        #      identical request bodies produce different possible responses - distinct 'Accept' header)
+        var_oper_req, var_oper_resp = _extract_info(operation)
+        var_prev_req, var_prev_resp = _extract_info(previous_definition)
+        if (
+            any(vo == vp for vo in var_oper_req for vp in var_prev_req) and
+            any(vo == vp for vo in var_oper_resp for vp in var_prev_resp)
+        ):
+            raise CorniceSwaggerException(
+                (
+                    "Invalid path '{}' definitions specifies conflicting "
+                    "parameters at more than one place. "
+                    "First variation: (requests: {}, responses: {}), "
+                    "Second variation: (requests: {}, responses: {})."
+                ).format(path, var_oper_req, var_oper_resp, var_prev_req, var_prev_resp)
+            )
 
     def _extract_path_from_service(self, service):
         """
